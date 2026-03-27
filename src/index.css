@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --paper: #f9f4ef;
+  --ink: #1e1a17;
+  --accent: #c96d45;
+  --accent-soft: #f3e3d8;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: "Work Sans", sans-serif;
+  background:
+    radial-gradient(circle at 8% 10%, #f6d8c7 0%, transparent 28%),
+    radial-gradient(circle at 92% 20%, #d5e8df 0%, transparent 30%),
+    linear-gradient(180deg, #fbf7f2 0%, #f2e7da 100%);
+}
