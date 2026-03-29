@@ -130,6 +130,28 @@ def get_engine():
     return engine
 
 
+def _mask_database_url(url: str) -> str:
+    if not url:
+        return ""
+    parts = urlsplit(url)
+    if "@" in parts.netloc:
+        _, host_part = parts.netloc.rsplit("@", 1)
+    else:
+        host_part = parts.netloc
+    return urlunsplit((parts.scheme, host_part, parts.path, parts.query, parts.fragment))
+
+
+def get_database_debug_info() -> dict:
+    return {
+        "has_postgres_url_non_pooling": bool(os.getenv("POSTGRES_URL_NON_POOLING")),
+        "has_postgres_url": bool(os.getenv("POSTGRES_URL")),
+        "has_database_url": bool(os.getenv("DATABASE_URL")),
+        "resolved_database_url_masked": _mask_database_url(DATABASE_URL),
+        "db_init_error": DB_INIT_ERROR,
+        "session_factory_ready": AsyncSessionLocal is not None,
+    }
+
+
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     _initialize_database()
     if AsyncSessionLocal is None:

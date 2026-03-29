@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 
 from api.calculations import calculate_settlements
-from api.database import get_db_session, get_engine
+from api.database import get_database_debug_info, get_db_session, get_engine
 from api.models import Base, Event, EventParticipant, Expense, ExpenseParticipant, User
 
 
@@ -82,6 +82,11 @@ async def startup() -> None:
 @app.get("/api/health")
 async def healthcheck() -> dict:
     return {"ok": True}
+
+
+@app.get("/api/debug-db")
+async def debug_db() -> dict:
+    return get_database_debug_info()
 
 
 @app.post("/api/events")
