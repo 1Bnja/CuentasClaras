@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.calculations import calculate_settlements
-from api.database import engine, get_db_session
+from api.database import get_db_session, get_engine
 from api.models import Base, Event, EventParticipant, Expense, ExpenseParticipant, User
 
 
@@ -42,6 +42,7 @@ class AddExpenseRequest(BaseModel):
 
 @app.on_event("startup")
 async def startup() -> None:
+    engine = get_engine()
     if engine is None:
         return
     async with engine.begin() as conn:

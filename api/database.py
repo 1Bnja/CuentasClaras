@@ -1,5 +1,6 @@
 import os
 from collections.abc import AsyncGenerator
+from threading import Lock
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from dotenv import load_dotenv
@@ -85,31 +86,55 @@ def _resolve_database_url() -> str:
 DATABASE_URL = _resolve_database_url()
 engine = None
 AsyncSessionLocal = None
+DB_INIT_ERROR: str | None = None
+_INIT_LOCK = Lock()
 
-if DATABASE_URL:
-    engine = create_async_engine(
-        DATABASE_URL,
-        # In serverless functions, avoiding long-lived pools prevents stale connections.
-        poolclass=NullPool,
-        pool_pre_ping=True,
-        pool_recycle=1800,
-    )
+def _initialize_database() -> None:
+    global engine, AsyncSessionLocal, DB_INIT_ERROR
 
-    AsyncSessionLocal = async_sessionmaker(
-        bind=engine,
-        expire_on_commit=False,
-        class_=AsyncSession,
-    )
+    if AsyncSessionLocal is not None or DB_INIT_ERROR is not None:
+        return
+
+    with _INIT_LOCK:
+        if AsyncSessionLocal is not None or DB_INIT_ERROR is not None:
+            return
+
+        if not DATABASE_URL:
+            DB_INIT_ERROR = (
+                "Database is not configured. Set POSTGRES_URL_NON_POOLING, "
+                "POSTGRES_URL, or DATABASE_URL in environment variables."
+            )
+            return
+
+        try:
+            engine = create_async_engine(
+                DATABASE_URL,
+                # In serverless functions, avoiding long-lived pools prevents stale connections.
+                poolclass=NullPool,
+                pool_pre_ping=True,
+                pool_recycle=1800,
+            )
+
+            AsyncSessionLocal = async_sessionmaker(
+                bind=engine,
+                expire_on_commit=False,
+                class_=AsyncSession,
+            )
+        except Exception as exc:
+            DB_INIT_ERROR = f"Database initialization failed: {exc}"
+
+
+def get_engine():
+    _initialize_database()
+    return engine
 
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+    _initialize_database()
     if AsyncSessionLocal is None:
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Database is not configured. Set POSTGRES_URL_NON_POOLING, "
-                "POSTGRES_URL, or DATABASE_URL in environment variables."
-            ),
+            detail=DB_INIT_ERROR or "Database initialization failed",
         )
     async with AsyncSessionLocal() as session:
         yield session
