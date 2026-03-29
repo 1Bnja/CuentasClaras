@@ -1,6 +1,7 @@
 import os
 from collections.abc import AsyncGenerator
 from threading import Lock
+from typing import Optional
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from dotenv import load_dotenv
@@ -86,7 +87,7 @@ def _resolve_database_url() -> str:
 DATABASE_URL = _resolve_database_url()
 engine = None
 AsyncSessionLocal = None
-DB_INIT_ERROR: str | None = None
+DB_INIT_ERROR: Optional[str] = None
 _INIT_LOCK = Lock()
 
 def _initialize_database() -> None:
