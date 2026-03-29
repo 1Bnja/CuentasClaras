@@ -42,11 +42,16 @@ class AddExpenseRequest(BaseModel):
 
 @app.on_event("startup")
 async def startup() -> None:
-    engine = get_engine()
-    if engine is None:
+    try:
+        engine = get_engine()
+        if engine is None:
+            return
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception as exc:
+        # Keep the function alive and let request handlers return a controlled 500.
+        print(f"Startup DB initialization skipped: {exc}")
         return
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
 
 
 @app.get("/api/health")
