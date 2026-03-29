@@ -3,6 +3,7 @@ from collections.abc import AsyncGenerator
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from dotenv import load_dotenv
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -82,27 +83,33 @@ def _resolve_database_url() -> str:
 
 
 DATABASE_URL = _resolve_database_url()
+engine = None
+AsyncSessionLocal = None
 
-if not DATABASE_URL:
-    raise RuntimeError(
-        "Database URL missing. Set POSTGRES_URL_NON_POOLING, POSTGRES_URL, or DATABASE_URL."
+if DATABASE_URL:
+    engine = create_async_engine(
+        DATABASE_URL,
+        # In serverless functions, avoiding long-lived pools prevents stale connections.
+        poolclass=NullPool,
+        pool_pre_ping=True,
+        pool_recycle=1800,
     )
 
-engine = create_async_engine(
-    DATABASE_URL,
-    # In serverless functions, avoiding long-lived pools prevents stale connections.
-    poolclass=NullPool,
-    pool_pre_ping=True,
-    pool_recycle=1800,
-)
-
-AsyncSessionLocal = async_sessionmaker(
-    bind=engine,
-    expire_on_commit=False,
-    class_=AsyncSession,
-)
+    AsyncSessionLocal = async_sessionmaker(
+        bind=engine,
+        expire_on_commit=False,
+        class_=AsyncSession,
+    )
 
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+    if AsyncSessionLocal is None:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Database is not configured. Set POSTGRES_URL_NON_POOLING, "
+                "POSTGRES_URL, or DATABASE_URL in environment variables."
+            ),
+        )
     async with AsyncSessionLocal() as session:
         yield session

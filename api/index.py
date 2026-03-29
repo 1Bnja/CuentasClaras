@@ -42,6 +42,8 @@ class AddExpenseRequest(BaseModel):
 
 @app.on_event("startup")
 async def startup() -> None:
+    if engine is None:
+        return
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
