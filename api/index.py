@@ -61,6 +61,14 @@ async def ensure_schema_ready() -> None:
         _SCHEMA_READY = True
 
 
+async def ensure_schema_or_500() -> None:
+    try:
+        await ensure_schema_ready()
+    except Exception as exc:
+        print(f"Schema initialization failed: {exc}")
+        raise HTTPException(status_code=500, detail="Database initialization failed")
+
+
 @app.on_event("startup")
 async def startup() -> None:
     try:
@@ -81,7 +89,7 @@ async def create_event(
     payload: CreateEventRequest,
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict:
-    await ensure_schema_ready()
+    await ensure_schema_or_500()
     try:
         event_id = str(uuid4())
         event = Event(id=event_id, title=payload.title.strip())
@@ -108,7 +116,7 @@ async def add_participant(
     payload: AddParticipantRequest,
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict:
-    await ensure_schema_ready()
+    await ensure_schema_or_500()
     try:
         event = await db.get(Event, event_id)
         if not event:
@@ -132,7 +140,7 @@ async def get_event(
     event_id: str,
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict:
-    await ensure_schema_ready()
+    await ensure_schema_or_500()
     try:
         event = await db.get(Event, event_id)
         if not event:
@@ -186,7 +194,7 @@ async def add_expense(
     payload: AddExpenseRequest,
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict:
-    await ensure_schema_ready()
+    await ensure_schema_or_500()
     try:
         event = await db.get(Event, event_id)
         if not event:
@@ -227,7 +235,7 @@ async def get_settlements(
     event_id: str,
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict:
-    await ensure_schema_ready()
+    await ensure_schema_or_500()
     try:
         event = await db.get(Event, event_id)
         if not event:
